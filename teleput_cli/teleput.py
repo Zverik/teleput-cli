@@ -3,7 +3,12 @@ import sys
 import requests
 import argparse
 import appdirs
-import magic
+
+try:
+    import magic
+    HAS_MAGIC = True
+except Exception:
+    HAS_MAGIC = False
 
 
 APP_NAME = 'teleput_cli'
@@ -24,6 +29,26 @@ def write_key(key: str):
         os.makedirs(os.path.dirname(filename))
     with open(filename, 'w') as f:
         f.write(key)
+
+
+def mime_from_filename(name: str) -> str:
+    _, ext = os.path.splitext(name)
+    if ext == '.png':
+        return 'image/png'
+    elif ext in ('.jpg', '.jpeg'):
+        return 'image/jpeg'
+    elif ext == '.gif':
+        return 'image/gif'
+    elif ext in ('.mp4', '.mpeg4'):
+        return 'video/mp4'
+    elif ext == '.mp3':
+        return 'audio/mpeg'
+    elif ext == '.m4a':
+        return 'audio/m4a'
+    elif ext == '.ogg':
+        return 'audio/ogg'
+    else:
+        return None
 
 
 def main():
@@ -63,11 +88,15 @@ def main():
                 fields['text'] = sys.stdin.read()
             else:
                 fields['text'] = options.what[-1]
+        if HAS_MAGIC:
+            mime_type = magic.from_file(options.what[0], mime=True)
+        else:
+            mime_type = mime_from_filename(options.what[0])
         files = {
             'media': (
                 options.what[0],
                 open(options.what[0], 'rb'),
-                magic.from_file(options.what[0], mime=True),
+                mime_type,
             )
         }
         resp = requests.post(SERVER + '/upload', fields, files=files)
